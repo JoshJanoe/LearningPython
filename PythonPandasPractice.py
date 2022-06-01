@@ -35,20 +35,20 @@ addColumn(cows,'active', cows.status, "active")
 def addRow (df, newEntry, newName, newTag, newGen, newGender, 
 			newMom, newDad, newBDay,newStatus, newNotes):
 	newCows = pandas.DataFrame({'entry': [newEntry],
-								'name': [newName],
-								'tag': [newTag],
-								'generation': [newGen],
-								'gender': [newGender],
-								'mother': [newMom],
-								'father': [newDad],
-								'birth/arrival date': [newBDay],
-								'status': [newStatus],
-								'notes': [newNotes]})
+					'name': [newName],
+					'tag': [newTag],
+					'generation': [newGen],
+					'gender': [newGender],
+					'mother': [newMom],
+					'father': [newDad],
+					'birth/arrival date': [newBDay],
+					'status': [newStatus],
+					'notes': [newNotes]})
 	df = df.append(newCows, sort=True, ignore_index=True)
 	df = df.reindex(columns=['entry','name','tag',
-							'generation','gender','mother',
-							'father','birth/arrival date',
-							'status','notes'])
+				'generation','gender','mother',
+				'father','birth/arrival date',
+				'status','notes'])
 	print(df)
 	print("---New Row Added---\n")
 
