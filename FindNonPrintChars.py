@@ -1,9 +1,10 @@
-import csv
-from importlib.resources import path
+#!python
 import pandas
 import argparse
-from pathlib import Path
 import sys
+import re
+
+### Code revised by KS to decrease processing time from 2n^2 to n^2 by eliminating extra loop over each column before looping over characters
 
 def main():
 	args = commandLineInput()
@@ -22,44 +23,34 @@ def errorCheck(path):
 	errorMessageArray = ["Searching file for errors.."]
 	totalErrors = 0
 	# 2. open the csv file and check for regex matches to [^\x00-\xff]
-	with open(path) as csv_file:
-		csvReader= csv.reader(csv_file, delimiter=",")
+	with open(path) as csvIn:
 		rowCounter = 0
-		for row in csvReader:
-			colCounter = 0
-			for col in row:
-				# 3. return an error with the line number of each match.
-				if isNotValid(col):
-					badChar = None
+		for row in csvIn:
+			# 3. return an error with the line number of each match.
+			badChar = None
+			badCharFound = True		
+			charCounter = 0
+			for char in row:
+				#the range "\x20-\x7E" or " -~" covers printable part of ascii table	
+				regEx = ('[^ -~\\n\\r]')
+				regExCheck = re.search(regEx, str(char), re.A)
+				if char == badChar:
 					badCharFound = True		
-					charCounter = 0
-					for char in col:
-						if char == badChar:
-							badCharFound = True		
-						if isNotValid(char) and badCharFound:
-							errorMessage = "ERROR found on LINE " + str(rowCounter) + " in COLUMN " + str(colCounter)+ ", at character INDEX " + str(charCounter) + " - character: " + char.encode("ascii", "backslashreplace").decode()
-							errorMessageArray.append(errorMessage)
-							badCharFound = False
-							badChar = char
-							totalErrors += 1
-							if charCounter == 0:
-								charCounter -= 1
-							else:
-								charCounter -= 2	
-						charCounter += 1
-				colCounter += 1	
-			rowCounter += 1			
+				if badCharFound and regExCheck != None:
+					errorMessage = "ERROR found on LINE " + str(rowCounter) + ", at INDEX " + str(charCounter) + " - character: " + char.encode("ascii", "backslashreplace").decode()
+					errorMessageArray.append(errorMessage)
+					badCharFound = False
+					badChar = char
+					totalErrors += 1
+					if charCounter == 0:
+						charCounter -= 1
+					else:
+						charCounter -= 2	
+				charCounter += 1
+			rowCounter += 1		
 		# 4. otherwise return nothing- indicating no errors were found.
 		errorMessageArray.append("Total errors found in file: " + str(totalErrors))
 	print(*errorMessageArray, sep="\n")
-
-def isNotValid(text):
-	decodedText = text.encode("ascii", "ignore").decode()
-	if text != decodedText:
-		return True
-	else:
-		return False
-
 
 #function to determine the number of columns in a given CSV file
 def colCount (path):
