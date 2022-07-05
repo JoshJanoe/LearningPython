@@ -1,42 +1,56 @@
 #!python
-import os
-import argparse
+from ast import List
 import re
 import pandas
+from tkinter import *
 
-# ADD CODE FOR A BETTER VISUAL REPRESENTATION OF BAD CHARACTERS
+###
+# Non-Printing Character and Column Count Check Setup
+###
 
-# Code revised by KS to decreased processing time from 2n^2 to n^2 by eliminating extra loop over each column before looping over characters
+# Checks to see if the user expected number of columns matches the actual number
+def colCheck(df, expectedCols, standAlone=0):
+	numColumns = len(df.columns)
+	result = "\tColumns expected: " + str(expectedCols) + "\n\tColumns found: " + str(numColumns)	
+	if expectedCols > 0:
+		result += "\nColumn check complete"
+		if expectedCols != numColumns: 
+			result += "\nWARNING: Column count does not match"
+		# 4. Otherwise returns nothing- indicating a good count.
+		if standAlone == 0:
+			result += "\n"+"-"*50
+	return result	
 
-# NOTES on ASSERT:
-# Errors out if the count doesn't match the integer input from the command line.
-# assert is a simple boolean
-# using assert() makes it always true
-# following statement applies if NOT true
+# Determines name of column containing the bad character
+def getColName(row, charCounter, df):
+	commaCount = 0
+	for c in row[:charCounter]:
+		if c == ",":
+			commaCount += 1
+	colHeadings = list(df.columns)
+	return colHeadings[commaCount]
 
-# Run speed found to be comparable over ~1000 line CSV with or without separated out functions
-# Command used for speed tests:  "time python <thisScriptFilePath> <testFile> -o colcheck -c 14"
+# Converts bad character into a printable form
+def pChar(char):
+	return char.encode("ascii", "backslashreplace").decode()
 
-
-def main():
-	args = commandLineInput()
-	assert os.path.isfile(args.path)
-	if args.option == "badchars":
-		errorCheck(args.path)
-	elif args.option == "colcheck":
-		errorCheck(args.path, args.cols)
+# Determines how to update the counter if a bad character is found
+def charCounterUpdate(counter):
+	if counter == 0:
+		return -1
 	else:
-		print("ERROR: INVALID OPTION ENTRY")
+		return -2	
 
-# Function to find any non-ascii characters
-# Also verifies column count if specified by user
 def errorCheck(path, expectedCols=0):
 	errorMessageString = ""
+	colCheckString = ""
 	totalErrors = 0
 	# the range "\x20-\x7E" or " -~" covers printable part of ascii table
 	regEx = ('[^ -~\\n\\r]')
 	df = pandas.read_csv(path)
-	colCheck(df,expectedCols)
+	if expectedCols > 0:
+		#errorMessageString += colCheck(df,expectedCols)
+		colCheckString += colCheck(df,expectedCols)
 
 	# Check CSV for matches to RegEx
 	with open(path) as csvIn:
@@ -62,65 +76,108 @@ def errorCheck(path, expectedCols=0):
 				charCounter += 1
 			rowCounter += 1
 		# If no errors found return nothing but simple print statement
-		assert errorMessageString != "", "No Errors Found"
-		print("Total errors found in file: " + str(totalErrors) + errorMessageString)
+		if errorMessageString == "":
+			errorMessageString += "No errors found!"
+		errorMessageString += "\nTotal errors found in file: " + str(totalErrors)
+		return colCheckString + errorMessageString
 
-# Checks to see if the user expected number of columns matches the actual number
-def colCheck(df, expectedCols):
-	numColumns = len(df.columns)
-	result = "\tColumns expected: " + str(expectedCols) + "\n\tColumns found: " + str(numColumns)	
-	if expectedCols != 0:
-		print("Column check complete")
-		assert expectedCols == numColumns, "Column count does not match\n"+result
-		# 4. Otherwise returns nothing- indicating a good count.
-		print(result+"\n"+"-"*60)
+###
+# GUI Setup
+###
 
-# Determines name of column containing the bad character
-def getColName(row, charCounter, df):
-	commaCount = 0
-	for c in row[:charCounter]:
-		if c == ",":
-			commaCount += 1
-	colHeadings = list(df.columns)
-	return colHeadings[commaCount]
+#gui code
+root = Tk()	
+root.title("Non Printable Character Check and Column Count Verify")	
 
-# Converts bad character into a printable form
-def pChar(char):
-	return char.encode("ascii", "backslashreplace").decode()
+# Variables
+stdPad = 5
+stdwidth = 30
+filePath = StringVar()
+filePath.set("")
+badCharBoolCB = IntVar()
+colCheckBoolCB = IntVar()
+numCols = IntVar()
+results = StringVar()
 
-# Determines how to update the counter if a bad character is found
-def charCounterUpdate(counter):
-	if counter == 0:
-		return -1
+def clrScreen():
+	readoutListBox.delete(0,END)
+
+def locked(currState):
+	if currState == 0:
+		colEntry.config(state=DISABLED)
+	if currState == 1:
+		colEntry.config(state=NORMAL)
+
+def updateText():
+	errorList = results.get().split("\n")
+	for line in errorList:
+		readoutListBox.insert(END, line)
+	readoutListBox.insert(END, "-"*50)
+
+def runChecks():
+	if filePath.get().__contains__("\""):
+		readoutListBox.insert(END, "\nInvalid file path")
 	else:
-		return -2
+		readoutListBox.insert(END, "\n\nChecking file...")
+		if badCharBoolCB.get() == 1 and colCheckBoolCB.get() == 1:
+			results.set(errorCheck(filePath.get(), numCols.get()))
+			updateText()
+		if badCharBoolCB.get() == 1 and colCheckBoolCB.get() == 0:
+			results.set(errorCheck(filePath.get()))
+			updateText()
+		if badCharBoolCB.get() == 0 and colCheckBoolCB.get() == 1:
+			df = pandas.read_csv(filePath.get())
+			results.set(colCheck(df,numCols.get(),1))
+			updateText()
+		if badCharBoolCB.get() == 0 and colCheckBoolCB.get() == 0:
+			results.set("No options selected")
+			updateText()
 
-def commandLineInput():
-	# Initialize parser
-	parser = argparse.ArgumentParser(description="Locates bad characters or verifies the number of columns in provided CSV file")
-	# Adding required argument
-	parser.add_argument(dest="path",
-						nargs='?',
-						type=str,
-						help="<Required> input file's full path")
-	# Adding optional argument
-	parser.add_argument('-o', dest="option",
-						default="badchars",
-						nargs='?',
-						type=str,
-						help="<Optional> option.  choose \"badchars\" to check for bad characters, or \"colcheck\" to verify columns")
-	# Adding optional argument
-	parser.add_argument('-c', dest="cols",
-						nargs='?',
-						type=int,
-						help="<Optional> column count")
-	parser.add_argument('-v', "--version",
-						action="version",
-						version="QL Data Checker 0.9.1",
-						help="Show program version")
-	# Adding optional argument
-	args = parser.parse_args()
-	return args
+# Setup frames and objects
+topFrame = LabelFrame(root, text="User input")
+bottomFrame = LabelFrame(root, text="Tests Output/Results")
+exitButton = Button(root, text="Exit Program", width=stdwidth, command=root.quit)
+clearScreenButton = Button(root, text="Clear", width=stdwidth, command=clrScreen)
 
-if __name__ == "__main__":
-	main()
+fileEntry = Entry(topFrame, bg="white", width=stdwidth*2, textvariable=filePath)
+description = Label(topFrame, text="Enter file path")
+badCharCB = Checkbutton(topFrame, text="Check for Non-Printable Characters", 
+						width=stdwidth, variable = badCharBoolCB, anchor=W,
+						onvalue=1, offvalue=0)
+colCheckCB = Checkbutton(topFrame, text="Verify Number of Columns", 
+						width=stdwidth, variable = colCheckBoolCB, 
+						command=lambda: locked(colCheckBoolCB.get()), anchor=W,
+						onvalue=1, offvalue=0)
+expectedCols = Label(topFrame, text="Expected Number of Columns")
+colEntry = Entry(topFrame, textvariable=numCols, state=DISABLED)
+submitButton = Button(topFrame, width=stdwidth, text="Run Test", command=runChecks)
+
+vScrollBar = Scrollbar(bottomFrame, orient=VERTICAL)
+readoutListBox = Listbox(bottomFrame, yscrollcommand=vScrollBar.set, width=100, 
+						bg="grey", fg="white")
+
+vScrollBar.config(command=readoutListBox.yview)
+readoutListBox.insert(END, "Click \"Run Test\" to begin")
+
+badCharCB.select()
+colCheckCB.deselect()
+
+# Push objects onto window
+topFrame.pack(padx=stdPad*2, pady=stdPad, ipady=stdPad, fill=X)
+bottomFrame.pack(padx=stdPad*2, pady=stdPad/2, ipady=stdPad, fill=X)
+clearScreenButton.pack(padx=stdPad*2, pady=stdPad*2, side=LEFT)
+exitButton.pack(padx=stdPad*2, pady=stdPad*2, side=RIGHT)
+
+fileEntry.grid(row=0, column=1, pady=stdPad, columnspan=2, padx=stdPad*3)
+description.grid(row=0, column=0)
+badCharCB.grid(row=1, column=0, pady=stdPad)
+colCheckCB.grid(row=2, column=0, pady=stdPad)
+expectedCols.grid(row=2, column=1, pady=stdPad, padx=stdPad*3)
+colEntry.grid(row=2, column=2, pady=stdPad)
+submitButton.grid(row=3, column=0, pady=stdPad, columnspan=3)
+
+readoutListBox.grid(row=0, column=0, ipadx=stdPad, ipady=stdPad)
+vScrollBar.grid(row=0,column=1, sticky=NS)
+
+#main execution
+root.mainloop()
