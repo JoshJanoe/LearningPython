@@ -1,59 +1,90 @@
-#!python
+#!/usr/bin/env python
 
 import random
 from tkinter import *
 
 cards = ["red", "red", "red", "red", "red", "red",
-			"orange", "orange", "orange", "orange", "orange", "orange", 
-			"yellow", "yellow", "yellow", "yellow", "yellow", "yellow", 
-			"green", "green", "green", "green", "green", "green", 
-			"blue", "blue", "blue", "blue", "blue", "blue", 
-			"purple", "purple", "purple", "purple", "purple", "purple", 
-			"double red", "double red", "double red", "double red",
-			"double orange", "double orange", "double orange",  
-			"double yellow", "double yellow", "double yellow", "double yellow",
-			"double green", "double green", "double green", 
-			"double blue", "double blue", "double blue", "double blue",  
-			"double purple", "double purple", "double purple", "double purple", 
-			"peppermint", "gumdrop", "ice-cream cone", "chocolate", "lollipop"]
+		"orange", "orange", "orange", "orange", "orange", "orange", 
+		"yellow", "yellow", "yellow", "yellow", "yellow", "yellow", 
+		"green", "green", "green", "green", "green", "green", 
+		"blue", "blue", "blue", "blue", "blue", "blue", 
+		"purple", "purple", "purple", "purple", "purple", "purple", 
+		"double red", "double red", "double red", "double red",
+		"double orange", "double orange", "double orange",  
+		"double yellow", "double yellow", "double yellow", "double yellow",
+		"double green", "double green", "double green", 
+		"double blue", "double blue", "double blue", "double blue",  
+		"double purple", "double purple", "double purple", "double purple", 
+		"peppermint", "gumdrop", "ice-cream cone", "chocolate", "lollipop"]
 used = []
 
-affirmative = ["y", "yes", "si", "yup", "yep", "yeah", "yea"]
-negative = ["n", "no", "nope", "nah"]
+affirmative = ["y", "yes", "si", "yup", "yep", "yeah", "yea", "ya"]
+negative = ["n", "no", "nope", "nah", "na"]
+draw = ["d", "draw", "dr"]
+restart = ["r", "re", "restart"]
+end = ["e", "end", "exit"]
+options = ["o", "opt", "options"]
+history = ["h", "hist", "history"]
 drawHistory = []
 playerHistory = {}
 
+inProgress = False
 
 counter = 0
 
 def main():
 
-	global cards, used, counter
+	global cards, used, counter, inProgress
 
-	playerList = setup()
+	if not inProgress:
+		playerList = setup()
+	inProgress = True
 	numPlayers = len(playerList)
 	currPlayer = 0
 
 	while (True):
 		currPlayer = playerList[counter]
+		
 		#expand program with multiple actions: draw, restart, end, view history, etc
-		print("Draw a card? (y or n) ")
-		answer = input()
-		if answer.lower() in affirmative: 
+		print("Choose and action: [D]raw, View [H]istory, [R]estart, [O]ptions, or [E]xit")
+		action = input()
+		action = action.lower()
+		if action in draw:
 			drawCard(currPlayer, numPlayers)
 
-		if (len(cards) == 0): 
-			print("Would you like to reshuffle the deck? ")
-			reshuffle = input()
-			if reshuffle.lower() in affirmative:
-				cards = used
-				used = []
-				showStats(len(cards),len(used))
-			if reshuffle.lower() in negative: break
+		elif action in history:
+			viewHistory()
 
-		if answer.lower() in negative: break
+		elif action in restart:
+			restartGame()
 
-	print("Thanks for playing!\n")	
+		elif action in options:
+			viewOptions()
+
+		elif action in end:
+			endGame()
+
+		elif action == "fe":
+			endGame("x")
+
+		else: continue
+
+		# #current working draw only version
+		# print("Draw a card? (y or n) ")
+		# answer = input()
+		# if answer.lower() in affirmative: 
+		# 	drawCard(currPlayer, numPlayers)
+
+		# if (len(cards) == 0): 
+		# 	print("Would you like to reshuffle the deck? ")
+		# 	reshuffle = input()
+		# 	if reshuffle.lower() in affirmative:
+		# 		cards = used
+		# 		used = []
+		# 		showStats(len(cards),len(used))
+		# 	if reshuffle.lower() in negative: break
+
+		# if answer.lower() in negative: break
 
 def showStats(cards, used):
 	print("\tRemaining cards: " + str(cards))
@@ -64,10 +95,12 @@ def setup():
 	playerList = []
 	while (True):
 		print("How many players for this game? ")
-		players = int(input())
-		if (players < 1 or players > 4):
+		players = input()
+		if (int(players) < 1 or int(players) > 4 or players.isalpha()):
 			print("Invalid number of players")
-		else: break
+		else: 
+			players = int(players)
+			break
 
 	playersNamed = False
 	while (not playersNamed):
@@ -109,8 +142,49 @@ def drawCard(currPlayer, numPlayers):
 	cards.remove(card)
 	used.append(card)
 	drawHistory.append(currPlayer + ": " + card)
+	if currPlayer in playerHistory:
+		playerHistory[currPlayer] = playerHistory[currPlayer] + ", " + card
+	else:
+		playerHistory[currPlayer] = card
 	showStats(len(cards),len(used))
 	return card
+
+def viewHistory():
+	#global used, playerHistory
+	print("[I]ndividual players, or [F]ull history. ")
+	opt = input().lower()
+	if opt == "i":
+		for player in playerHistory:
+			print(player + ": " + playerHistory[player])
+	if opt == "f":
+		count = 1
+		for card in used:
+			print("Card " + str(count) + ": " + card)
+			count += 1
+
+def viewOptions():
+	print("No options at this time")
+
+def restartGame():
+	if verify():
+		global inProgress
+		for card in used:
+			cards.append(card)
+		inProgress = False
+		main()
+
+def endGame(force):
+	if force == "x":
+		quit()
+	if verify():
+		print("Thanks for playing!")
+		quit()
+
+def verify():
+	print("Are you sure?")
+	ans = input()
+	if ans in affirmative:
+		return True
 
 if __name__ == "__main__":
     main()	
